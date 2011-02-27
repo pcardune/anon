@@ -10,14 +10,17 @@
   #userMessages
     div Stuff you are saying
     ul
-      - each message in userMessages
-        !=partial("message", {locals: {message: message}})
+      != partial("message", userMessages)
+
+  #commentedOnMessages
+    div Stuff you are commenting on
+    ul
+      != partial("message", commentedOnMessages)
 
   #globalMessages
     div What other people are saying:
     ul
-      - each message in globalMessages
-        !=partial("message", {locals: {message: message}})
+      != partial("message", globalMessages)
 
 script(src="/socket.io/socket.io.js", type="text/javascript")
 script(src="/js/anon.js", type="text/javascript")

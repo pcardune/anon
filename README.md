@@ -24,6 +24,7 @@ Now you need to install npm:
 Now you need to install all the dependencies for anon:
 
     npm install express jade node-uuid socket.io socket.io-connect
+    npm install simplesets underscore
 
 Get the code
 ------------

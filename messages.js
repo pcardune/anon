@@ -1,4 +1,5 @@
 var uuid = require('node-uuid'),
+    sets = require('simplesets'),
     util = require('util');
 
 var MessageStore = {
@@ -14,6 +15,14 @@ var MessageStore = {
 
   getById: function(id) {
     return this._messages[id];
+  },
+
+  multigetById: function(ids) {
+    var result = [];
+    for (var i = 0; i < ids.length; i++) {
+      result.push(this.getById(ids[i]));
+    }
+    return result;
   },
 
   getLastN: function(n) {
@@ -60,6 +69,7 @@ var CommentStore = {
   add: function(userId, messageId, content) {
     var comment = new Comment(userId, messageId, content);
     this._comments[comment.id] = comment;
+    UserStore.getById(userId)._commentIds.push(comment.id);
     return comment.id;
   },
 
@@ -81,6 +91,7 @@ Comment.prototype = {
   getUser: function() {
     UserStore.getById(this.userId);
   },
+
   getMessage: function() {
     MessageStore.getById(this.messageId);
   }
@@ -118,6 +129,7 @@ Message.prototype = {
 function User() {
   this.id = uuid();
   this._messageIds = [];
+  this._commentIds = [];
 }
 
 User.prototype = {
@@ -133,6 +145,19 @@ User.prototype = {
       messages.unshift(MessageStore.getById(this._messageIds[i]));
     }
     return messages;
+  },
+
+  getCommentedOnMessageIds: function() {
+    var ids = new sets.Set();
+    for (var i = 0; i < this._commentIds.length; i++) {
+      ids.add(CommentStore.getById(this._commentIds[i]).messageId);
+    }
+    console.log("Found", ids.size(), "message ids");
+    return ids.array();
+  },
+
+  getCommentedOnMessages: function() {
+    return MessageStore.multigetById(this.getCommentedOnMessageIds());
   }
 };
 

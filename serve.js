@@ -1,11 +1,13 @@
 //#!/usr/bin/env node
 
 var express = require('express'),
+    sets = require('simplesets'),
     util = require('util'),
     jade = require('jade'),
     MemoryStore = express.session.MemoryStore,
     uuid = require('node-uuid'),
     io = require('socket.io'),
+    underscore = require('underscore'),
     messages = require('./messages.js');
 
 
@@ -50,10 +52,25 @@ function getUser(req) {
 app.get('/', function(req, res) {
   var user = getUser(req);
   console.log("got user", user);
+  var globalMessages = messages.getLastNMessagesExcludingUser(5, user.id);
+  var commentedOnMessages = user.getCommentedOnMessages();
+  var userMessages = user.getMessages();
+
+  // remove commentedOnMessages that are the user's own messages
+  commentedOnMessages = underscore.select(commentedOnMessages, function(message) {
+    return message.userId !== user.id;
+  });
+
+  var ignoreIds = new sets.Set(underscore.pluck(commentedOnMessages, 'id'));
+  globalMessages = underscore.select(globalMessages, function(message) {
+    return !ignoreIds.has(message.id);
+  });
+
   res.render('index', {
     locals: {
-      userMessages: user.getMessages(),
-      globalMessages: messages.getLastNMessagesExcludingUser(5, user.id)
+      userMessages: userMessages,
+      globalMessages: globalMessages,
+      commentedOnMessages: commentedOnMessages
     }
   });
 });
