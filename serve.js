@@ -17,7 +17,10 @@ var app = express.createServer(
 
 app.configure(function(){
   app.use(express.cookieDecoder());
-  app.use(express.session({secret:'foo',store:new MemoryStore({reapInterval: 60000 * 10 })}));
+  app.use(express.session({
+    secret: uuid(),
+    store: new MemoryStore({reapInterval: 60000 * 10 })
+  }));
   app.use(express.methodOverride());
   app.use(express.bodyDecoder());
   app.use(app.router);
