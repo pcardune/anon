@@ -21,11 +21,6 @@ Now you need to install npm:
 
     curl http://npmjs.org/install.sh | sh
 
-Now you need to install all the dependencies for anon:
-
-    npm install express jade node-uuid socket.io socket.io-connect
-    npm install simplesets underscore
-
 Get the code
 ------------
 
@@ -34,4 +29,5 @@ Checkout the code and run it!
     cd ~
     git clone git@github.com:pcardune/anon.git
     cd anon
-    node serve.js
+    npm link
+    anon-serve
