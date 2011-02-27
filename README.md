@@ -26,8 +26,18 @@ Get the code
 
 Checkout the code and run it!
 
-    cd ~
     git clone git@github.com:pcardune/anon.git
     cd anon
+
+Install the dependencies:
+
     npm link
+
+Start the server:
+
     anon-serve
+
+A quick note about configuration.  You can use the config-dev.js.in file
+as a template for your own configuration file, which you can use like so:
+
+    anon-serve -config config-dev.js

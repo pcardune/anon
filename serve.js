@@ -110,9 +110,11 @@ app.post('/comment', function(req, res) {
   res.redirect("back");
 });
 
-var port = 8085;
-console.log("running on port", port);
-app.listen(port);
+var config = require('config')('server', {
+  port: 8085
+});
+console.log("running on port", config.port);
+app.listen(config.port);
 
 
 // SOCKET CODE
