@@ -3,7 +3,7 @@
 var express = require('express'),
     util = require('util'),
     jade = require('jade'),
-    MemoryStore = require('connect/middleware/session/memory'),
+    MemoryStore = express.session.MemoryStore,
     uuid = require('node-uuid'),
     io = require('socket.io'),
     messages = require('./messages.js');
@@ -17,7 +17,7 @@ var app = express.createServer(
 
 app.configure(function(){
   app.use(express.cookieDecoder());
-  app.use(express.session({store:new MemoryStore({reapInterval: 60000 * 10 })}));
+  app.use(express.session({secret:'foo',store:new MemoryStore({reapInterval: 60000 * 10 })}));
   app.use(express.methodOverride());
   app.use(express.bodyDecoder());
   app.use(app.router);
@@ -90,7 +90,7 @@ app.post('/comment', function(req, res) {
   res.redirect("back");
 });
 
-var port = 3000;
+var port = 8085;
 console.log("running on port", port);
 app.listen(port);
 
