@@ -38,6 +38,10 @@ Start the server:
     anon-serve
 
 A quick note about configuration.  You can use the config-dev.js.in file
-as a template for your own configuration file, which you can use like so:
+as a template for your own configuration file, which you can use like so.
+Without the configuration file there will be no persistant storage between
+server restarts.  You can use a configuration file like so:
 
-    anon-serve -config config-dev.js
+    anon-serve -config ./config-dev.js.in
+
+Note that the ./ part is important.

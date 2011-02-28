@@ -1,8 +1,14 @@
 var uuid = require('node-uuid'),
+    path = require('path'),
     sets = require('simplesets'),
     util = require('util'),
     underscore = require('underscore'),
+    fs = require('fs'),
     futures = require('futures');
+
+var config = require('config')('messages', {
+  saveToFile: false
+});
 
 var MessageStore = {
   _messages: {},
@@ -52,6 +58,21 @@ var MessageStore = {
       }
     }
     return futures.future().deliver(null, messages);
+  },
+
+  dump: function() {
+    return {
+      _messages: underscore.map(this._messages, function(item) {return item.dump();}),
+      _messagesInTime: this._messagesInTime
+    };
+  },
+
+  load: function(data) {
+    console.log("Loading", data._messages.length, "messages");
+    underscore.each(data._messages, function(item) {
+      this._messages[item.id] = Message.load(item);
+    }, this);
+    this._messagesInTime = data._messagesInTime;
   }
 };
 
@@ -66,6 +87,17 @@ var UserStore = {
 
   getById: function(id) {
     return futures.future().deliver(null, this._users[id]);
+  },
+
+  dump: function() {
+    return underscore.map(this._users, function(item) {return item.dump();});
+  },
+
+  load: function(data) {
+    console.log("Loading", data.length, "users");
+    underscore.each(data, function(item) {
+      this._users[item.id] = User.load(item);
+    }, this);
   }
 };
 
@@ -85,6 +117,17 @@ var CommentStore = {
 
   getById: function(id) {
     return futures.future().deliver(null, this._comments[id]);
+  },
+
+  dump: function() {
+    return underscore.map(this._comments, function(item) {return item.dump();});
+  },
+
+  load: function(data) {
+    console.log("Loading", data.length, "comments");
+    underscore.each(data, function(item) {
+      this._comments[item.id] = Comment.load(item);
+    }, this);
   }
 
 };
@@ -96,7 +139,9 @@ function Comment(userId, messageId, content) {
   this.messageId = messageId;
   this.content = content;
 };
-
+Comment.load = function(data) {
+  return underscore.extend(new Comment(), data);
+};
 Comment.prototype = {
   getUser: function() {
     return UserStore.getById(this.userId);
@@ -104,6 +149,16 @@ Comment.prototype = {
 
   getMessage: function() {
     return MessageStore.getById(this.messageId);
+  },
+
+  dump: function() {
+    return {
+      id: this.id,
+      timestamp: this.timestamp,
+      userId: this.userId,
+      messageId: this.messageId,
+      content: this.content
+    };
   }
 };
 
@@ -114,7 +169,9 @@ function Message(userId, content) {
   this.content = content;
   this.commentIds = [];
 }
-
+Message.load = function(data) {
+  return underscore.extend(new Message(), data);
+};
 Message.prototype = {
   getUser: function() {
     return UserStore.getById(this.userId);
@@ -134,6 +191,16 @@ Message.prototype = {
     }
     this.comments = comments;
     return futures.future().deliver(null, comments);
+  },
+
+  dump: function() {
+    return {
+      id: this.id,
+      timestamp: this.timestamp,
+      userId: this.userId,
+      content: this.content,
+      commentIds: this.commentIds
+    };
   }
 };
 
@@ -143,7 +210,9 @@ function User() {
   this._messageIds = [];
   this._commentIds = [];
 }
-
+User.load = function(data) {
+  return underscore.extend(new User(), data);
+};
 User.prototype = {
   add: function(content) {
     var messageId = MessageStore._add(this.id, content);
@@ -173,10 +242,49 @@ User.prototype = {
 
   getCommentedOnMessages: function() {
     return MessageStore.multigetById(this._getCommentedOnMessageIds());
+  },
+
+  dump: function() {
+    return {
+      id: this.id,
+      _messageIds: this._messageIds,
+      _commentIds: this._commentIds
+    };
   }
 };
 
+
 module.exports = {
+
+  dump: function() {
+    // dump all the data out to a file
+    if (!config.saveToFile) {
+      return;
+    }
+    var data = {
+      users: UserStore.dump(),
+      messages: MessageStore.dump(),
+      comments: CommentStore.dump()
+    };
+    fs.writeFileSync(config.saveToFile, JSON.stringify(data));
+  },
+
+  load: function() {
+    // load all the data in from a file
+    if (!config.loadFromFile) {
+      return;
+    }
+    console.log("loading data from", config.loadFromFile);
+
+    path.exists(config.loadFromFile, function(exists) {
+      if (exists) {
+        var data = JSON.parse(fs.readFileSync(config.loadFromFile));
+        UserStore.load(data.users);
+        MessageStore.load(data.messages);
+        CommentStore.load(data.comments);
+      }
+    });
+  },
 
   addUser: function() {
     return UserStore.add();

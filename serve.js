@@ -1,6 +1,8 @@
 //#!/usr/bin/env node
 
 var express = require('express'),
+    fs = require('fs'),
+    path = require('path'),
     sets = require('simplesets'),
     util = require('util'),
     jade = require('jade'),
@@ -12,6 +14,11 @@ var express = require('express'),
     messages = require('./messages.js'),
     autils = require('./utils.js');
 
+var config = require('config')('server', {
+  port: 8085,
+  sessionSecret: uuid(),
+  sessionFile: null
+});
 
 // WEB APP CODE
 var app = express.createServer(
@@ -19,11 +26,13 @@ var app = express.createServer(
   express.bodyDecoder()
 );
 
+var sessionStore = new MemoryStore({reapInterval: 60000 * 10 });
+
 app.configure(function(){
   app.use(express.cookieDecoder());
   app.use(express.session({
-    secret: uuid(),
-    store: new MemoryStore({reapInterval: 60000 * 10 })
+    secret: config.sessionSecret,
+    store: sessionStore
   }));
   app.use(express.methodOverride());
   app.use(express.bodyDecoder());
@@ -183,9 +192,16 @@ app.post('/comment', function(req, res) {
 
 });
 
-var config = require('config')('server', {
-  port: 8085
-});
+console.log("Loading saved messages");
+messages.load();
+if (config.sessionFile) {
+  console.log("Loading saved sessions");
+  path.exists(config.sessionFile, function(exists) {
+    if (exists) {
+      sessionStore.sessions = JSON.parse(fs.readFileSync(config.sessionFile));
+    }
+  });
+}
 console.log("running on port", config.port);
 app.listen(config.port);
 
@@ -201,4 +217,16 @@ socket.on('connection', function(client) {
   client.on('disconnect', function() {
     console.log(client.sessionId, 'disconnected');
   });
+});
+
+process.on('SIGINT', function() {
+  // oh dang, we are shutting down.  Let's save all the messages to a file real quick!
+  console.log("\n\nSaving data and exiting...");
+  app.close();
+  messages.dump();
+  // now let's save the sessions
+  if (config.sessionFile) {
+    fs.writeFileSync(config.sessionFile, JSON.stringify(sessionStore.sessions));
+  }
+  process.exit();
 });

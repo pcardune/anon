@@ -1,5 +1,11 @@
 module.exports = {
   server: {
-    port: 8085
+    port: 8085,
+    sessionSecret: 'somesecret',
+    sessionFile: './sessions.json'
+  },
+  messages: {
+    saveToFile: './saved-messages.json',
+    loadFromFile: './saved-messages.json'
   }
 };
