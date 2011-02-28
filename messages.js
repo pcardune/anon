@@ -1,28 +1,35 @@
 var uuid = require('node-uuid'),
     sets = require('simplesets'),
-    util = require('util');
+    util = require('util'),
+    underscore = require('underscore'),
+    futures = require('futures');
 
 var MessageStore = {
   _messages: {},
   _messagesInTime: [],
 
+  _add: function(userId, content) {
+    var message = new Message(userId, content);
+    this._messages[message.id] = message;
+    this._messagesInTime.push(message.id);
+    console.log("MessageStore._add:", message.id);
+    return message.id;
+  },
+
   add: function(userId, content) {
-    var m = new Message(userId, content);
-    this._messages[m.id] = m;
-    this._messagesInTime.push(m.id);
-    return m;
+    return futures.future().deliver(null, this._add.apply(this, arguments));
   },
 
   getById: function(id) {
-    return this._messages[id];
+    return futures.future().deliver(null, this._messages[id]);
   },
 
   multigetById: function(ids) {
     var result = [];
     for (var i = 0; i < ids.length; i++) {
-      result.push(this.getById(ids[i]));
+      result.push(this._messages[ids[i]]);
     }
-    return result;
+    return futures.future().deliver(null, result);
   },
 
   getLastN: function(n) {
@@ -30,22 +37,21 @@ var MessageStore = {
     var messages = [];
     n = Math.min(n, size);
     while (n--) {
-      messages.unshift(this.getById(this._messagesInTime[size - 1 - n]));
+      messages.unshift(this._messages[this._messagesInTime[size - 1 - n]]);
     }
-    return messages;
+    return futures.future().deliver(null, messages);
   },
 
   getLastNExcludingUser: function(n, userId) {
     var messages = [];
     var index = this._messagesInTime.length;
     while (messages.length < n && --index >= 0) {
-      var message = this.getById(this._messagesInTime[index]);
-      console.log("Got message at index",index, ":", util.inspect(message));
+      var message = this._messages[this._messagesInTime[index]];
       if (message.userId !== userId) {
         messages.push(message);
       }
     }
-    return messages;
+    return futures.future().deliver(null, messages);
   }
 };
 
@@ -55,26 +61,30 @@ var UserStore = {
   add: function() {
     var user = new User();
     this._users[user.id] = user;
-    return user.id;
+    return futures.future().deliver(null, user.id);
   },
 
   getById: function(id) {
-    return this._users[id];
+    return futures.future().deliver(null, this._users[id]);
   }
 };
 
 var CommentStore = {
   _comments: {},
 
-  add: function(userId, messageId, content) {
+  _add: function(userId, messageId, content) {
     var comment = new Comment(userId, messageId, content);
     this._comments[comment.id] = comment;
-    UserStore.getById(userId)._commentIds.push(comment.id);
+    UserStore._users[userId]._commentIds.push(comment.id);
     return comment.id;
   },
 
+  add: function(userId, messageId, content) {
+    return futures.future().deliver(null, this._add.apply(this, arguments));
+  },
+
   getById: function(id) {
-    return this._comments[id];
+    return futures.future().deliver(null, this._comments[id]);
   }
 
 };
@@ -89,11 +99,11 @@ function Comment(userId, messageId, content) {
 
 Comment.prototype = {
   getUser: function() {
-    UserStore.getById(this.userId);
+    return UserStore.getById(this.userId);
   },
 
   getMessage: function() {
-    MessageStore.getById(this.messageId);
+    return MessageStore.getById(this.messageId);
   }
 };
 
@@ -107,21 +117,23 @@ function Message(userId, content) {
 
 Message.prototype = {
   getUser: function() {
-    UserStore.getById(this.userId);
+    return UserStore.getById(this.userId);
   },
 
   addComment: function(userId, content) {
-    var commentId = CommentStore.add(userId, this.id, content);
+    var commentId = CommentStore._add(userId, this.id, content);
     this.commentIds.push(commentId);
-    return commentId;
+    return futures.future().deliver(null, commentId);
   },
 
   getComments: function() {
+    console.log("getting comments for", this.id);
     var comments = [];
     for (var i = 0; i < this.commentIds.length; i++) {
-      comments.push(CommentStore.getById(this.commentIds[i]));
+      comments.push(CommentStore._comments[this.commentIds[i]]);
     }
-    return comments;
+    this.comments = comments;
+    return futures.future().deliver(null, comments);
   }
 };
 
@@ -134,30 +146,33 @@ function User() {
 
 User.prototype = {
   add: function(content) {
-    var m = MessageStore.add(this.id, content);
-    this._messageIds.push(m.id);
-    return m.id;
+    var messageId = MessageStore._add(this.id, content);
+    this._messageIds.push(messageId);
+    return futures.future().deliver(null, messageId);
   },
 
   getMessages: function() {
     var messages = [];
     for (var i = 0; i < this._messageIds.length; i++) {
-      messages.unshift(MessageStore.getById(this._messageIds[i]));
+      messages.unshift(MessageStore._messages[this._messageIds[i]]);
     }
-    return messages;
+    return futures.future().deliver(null, messages);
   },
 
-  getCommentedOnMessageIds: function() {
+  _getCommentedOnMessageIds: function() {
     var ids = new sets.Set();
     for (var i = 0; i < this._commentIds.length; i++) {
-      ids.add(CommentStore.getById(this._commentIds[i]).messageId);
+      ids.add(CommentStore._comments[this._commentIds[i]].messageId);
     }
-    console.log("Found", ids.size(), "message ids");
     return ids.array();
   },
 
+  getCommentedOnMessageIds: function() {
+    return futures.future().deliver(null, this._getCommentedOnMessageIds());
+  },
+
   getCommentedOnMessages: function() {
-    return MessageStore.multigetById(this.getCommentedOnMessageIds());
+    return MessageStore.multigetById(this._getCommentedOnMessageIds());
   }
 };
 

@@ -1,6 +1,6 @@
 li.message(id=message.id)
   = message.content
   ul.comments
-    - each comment in message.getComments()
+    - each comment in message.comments
       li.comment(id=comment.id)= comment.content
   !=partial("reply", {locals: {message: message}})

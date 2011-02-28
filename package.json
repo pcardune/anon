@@ -18,6 +18,7 @@
     "socket.io-connect":"0.1.0",
     "simplesets":"1.1.6",
     "underscore":"1.1.4",
-    "config":"0.2.9"
+    "config":"0.2.9",
+    "futures":">=1.9.0"
   }
 }

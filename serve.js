@@ -8,7 +8,9 @@ var express = require('express'),
     uuid = require('node-uuid'),
     io = require('socket.io'),
     underscore = require('underscore'),
-    messages = require('./messages.js');
+    futures = require('futures'),
+    messages = require('./messages.js'),
+    autils = require('./utils.js');
 
 
 // WEB APP CODE
@@ -39,75 +41,146 @@ app.configure('production', function(){
 
 app.set('view engine', 'jade');
 
-function getUser(req) {
+function getUserId(req) {
+  var future = futures.future();
+  var getUserId;
   if (!req.session.userId) {
-    req.session.userId = messages.addUser();
-    console.log("created new user with id", req.session.userId);
+    getUserId = messages.addUser();
+  } else {
+    getUserId = futures.future().deliver(null, req.session.userId);
   }
-  var user = messages.getUserById(req.session.userId);
-  console.log("got user", user);
-  return user;
+  getUserId.when(function onGetUserId(err, userId) {
+    req.session.userId = userId;
+    future.callback(req.session.userId);
+  });
+  return future;
+}
+
+function getUser(req) {
+  var future = futures.future();
+  getUserId(req).when(function onGetUserId(err, userId) {
+    messages.getUserById(userId).when(function onGetUser(err, user) {
+      future.callback(user);
+    });
+  });
+
+  return future;
 }
 
 app.get('/', function(req, res) {
-  var user = getUser(req);
-  console.log("got user", user);
-  var globalMessages = messages.getLastNMessagesExcludingUser(5, user.id);
-  var commentedOnMessages = user.getCommentedOnMessages();
-  var userMessages = user.getMessages();
+  console.log("getting user");
+  getUser(req).when(function onGetUser(err, user) {
+    console.log("got user");
+    var join = futures.join();
+    join.add(
+      messages.getLastNMessagesExcludingUser(5, user.id),
+      user.getCommentedOnMessages(),
+      user.getMessages()
+    );
 
-  // remove commentedOnMessages that are the user's own messages
-  commentedOnMessages = underscore.select(commentedOnMessages, function(message) {
-    return message.userId !== user.id;
+    join.when(autils.args(
+      function onGetData(globalMessages, commentedOnMessages, userMessages) {
+        console.log("got data");
+        // remove commentedOnMessages that are the user's own messages
+        commentedOnMessages = underscore.select(commentedOnMessages, function(message) {
+          return message.userId !== user.id;
+        });
+
+        var ignoreIds = new sets.Set(underscore.pluck(commentedOnMessages, 'id'));
+        globalMessages = underscore.select(globalMessages, function(message) {
+          return !ignoreIds.has(message.id);
+        });
+
+        // TODO: make this less painful
+        var join = futures.join();
+        function joinMessage(message){
+          join.add(message.getComments());
+        }
+        underscore.each(userMessages, joinMessage);
+        underscore.each(globalMessages, joinMessage);
+        underscore.each(commentedOnMessages, joinMessage);
+        // in case no other futures were added
+        join.add(futures.future().deliver(null));
+
+        join.when(function() {
+          res.render('index', {
+            locals: {
+              userMessages: userMessages,
+              globalMessages: globalMessages,
+              commentedOnMessages: commentedOnMessages
+            }
+          });
+        });
+
+
+
+      }));
+
   });
 
-  var ignoreIds = new sets.Set(underscore.pluck(commentedOnMessages, 'id'));
-  globalMessages = underscore.select(globalMessages, function(message) {
-    return !ignoreIds.has(message.id);
-  });
-
-  res.render('index', {
-    locals: {
-      userMessages: userMessages,
-      globalMessages: globalMessages,
-      commentedOnMessages: commentedOnMessages
-    }
-  });
 });
 
 app.post('/message', function(req, res) {
-  var user = getUser(req);
-  var messageId = user.add(req.param("content"));
-  var message = messages.getMessageById(messageId);
-  console.log("Created new message:", message);
-  socket.broadcast({
-    method: 'dom',
-    params: [{
-      content: res.partial("message", {locals: {message: message}}),
-      target: "#globalMessages > ul",
-      position: "prepend"
-    }]
+  getUser(req).when(function onGetUser(err, user) {
+    console.log("got user", user);
+    user.add(req.param("content")).when(function onAddMessage(err, messageId) {
+      console.log("created new message with id", messageId);
+      res.redirect("back");
+
+      messages.getMessageById(messageId).when(function onGetMessage(err, message) {
+
+        message.getComments().when(function() {
+          socket.broadcast({
+            method: 'dom',
+            params: [{
+              content: res.partial("message", {locals: {message: message}}),
+              target: "#globalMessages > ul",
+              position: "prepend"
+            }]
+          });
+
+        });
+
+
+      });
+
+    });
+
   });
-  res.redirect("back");
 });
 
 app.post('/comment', function(req, res) {
-  var user = getUser(req);
-  var message = messages.getMessageById(req.param("messageId"));
-  if (message) {
-    var commentId = message.addComment(user.id, req.param("content"));
-    console.log("Created new comment:", commentId);
-  }
-  socket.broadcast({
-    method: 'dom',
-    params: [{
-      content: res.partial("message", {locals: {message: message}}),
-      target: "#"+message.id,
-      position: "replace"
-    }]
-  });
+  var join = futures.join();
+  join.add(
+    getUserId(req),
+    messages.getMessageById(req.param("messageId"))
+  );
+  join.when(autils.args(function onGetStuff(userId, message) {
+    if (message) {
+      message.addComment(userId, req.param("content")).when(function onAddComment(err, commentId){
+        res.redirect("back");
 
-  res.redirect("back");
+        console.log("Created new comment:", commentId);
+        messages.getMessageById(req.param("messageId")).when(function onGetMessage(err, message) {
+
+          message.getComments().when(function() {
+
+            socket.broadcast({
+              method: 'dom',
+              params: [{
+                content: res.partial("message", {locals: {message: message}}),
+                target: "#"+message.id,
+                position: "replace"
+              }]
+            });
+
+          });
+
+        });
+      });
+    }
+  }));
+
 });
 
 var config = require('config')('server', {
