@@ -92,6 +92,7 @@ MessageStore.prototype.getLastNExcludingUser = function(n, userId) {
 MessageStore.prototype.dump = function() {
   var data = BaseStore.prototype.dump.call(this);
   data._messagesInTime = this._messagesInTime;
+  return data;
 };
 
 MessageStore.prototype.load = function(data) {
