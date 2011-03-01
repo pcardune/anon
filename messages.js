@@ -24,7 +24,11 @@ BaseStore.prototype.add = function() {
 };
 
 BaseStore.prototype.getById = function(id) {
-  return futures.future().deliver(null, this._data[id]);
+  var item = this._data[id];
+  return futures.future().deliver(
+    item === undefined ? "id "+id+" does not exist" : null,
+    item
+  );
 };
 
 BaseStore.prototype.multigetById = function(ids) {
