@@ -3,8 +3,14 @@ html
   head
     title ...
     script(src="/js/jquery.min.js", type="text/javascript")
+    meta(name="viewport", content="width=device-width; initial-scale=1.0; maximum-scale=1.0; user-scalable=0;")
     link(rel="stylesheet", type="text/css", href="http://yui.yahooapis.com/3.3.0/build/cssreset/reset-min.css")
     link(rel="stylesheet", type="text/css", href="/css/style.css")
-
+    link(rel="stylesheet", type="text/css", href="/css/touch.css", media="only screen and (max-device-width: 480px)")
   body
     !{body}
+    script(type="text/javascript")
+      | window.addEventListener("load", function() { setTimeout(loaded, 100) }, false);
+      | function loaded() {
+	    |   window.scrollTo(0, 1); // pan to the bottom, hides the location bar
+	    | }
