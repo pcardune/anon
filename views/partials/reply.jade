@@ -1,5 +1,6 @@
-form(method="post", action="comment")
+form.reply(method="post", action="comment")
   input(type="hidden", name="messageId", value=message.id)
-  input(type="text", name="content")
-  br
-  button(type="submit") Shout Back
+  .row.content
+    textarea(name="content")
+  .buttons
+    button(type="submit") Shout Back

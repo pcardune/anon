@@ -2,10 +2,10 @@
 
   form#composer(method="post", action="message")
     label(for="composer") Say Something:
-    br
-    input(type="text", name="content", autofocus=true)
-    br
-    button(type="submit") Shout
+    .row.content
+      textarea(name="content", autofocus=true)
+    .buttons
+      button(type="submit") Shout
 
   #userMessages
     div Stuff you are saying

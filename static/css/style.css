@@ -1,0 +1,64 @@
+button {
+  border: 1px solid black;
+  background: white;
+  padding: 5px;
+  margin: 5px;
+}
+textarea {
+  padding: 5px;
+}
+
+form .row {
+  position: relative;
+}
+form .row textarea {
+  position: absolute;
+  top: 0px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+
+#main {
+  margin: auto;
+  max-width: 760px;
+  padding: 20px;
+}
+
+#composer label {
+  display: block;
+}
+
+#composer .content {
+  height: 100px;
+}
+
+form .buttons {
+  text-align: right;
+}
+form .buttons button {
+  margin: 5px 0px 5px 5px;
+}
+
+.message {
+  border: 1px solid black;
+  padding: 5px;
+  margin: 5px;
+}
+.message > .content {
+  font-weight: bold;
+}
+.message .comments {
+  margin: 5px;
+}
+.message .comments .comment {
+  border: 1px solid #eee;
+  padding: 5px;
+}
+.message .reply {
+  margin: 5px;
+}
+.message .reply .content {
+  height: 30px;
+}
