@@ -67,11 +67,22 @@ function getUserId(req) {
 
 function getUser(req) {
   var future = futures.future();
-  getUserId(req).when(function onGetUserId(err, userId) {
-    messages.getUserById(userId).when(function onGetUser(err, user) {
-      future.callback(user);
+  var loop = futures.loop();
+  loop.setMaxLoop(2);
+  loop.run(function(next, err) {
+    // try to get a user
+    getUserId(req).when(function onGetUserId(err, userId) {
+      messages.getUserById(userId).when(function onGetUser(err, user) {
+        if (err) {
+          // no user by that id... reset the session and try again.
+          req.session.regenerate(next);
+        } else {
+          future.deliver(err, user);
+        }
+      });
     });
   });
+
 
   return future;
 }
