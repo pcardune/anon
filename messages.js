@@ -96,10 +96,6 @@ MessageStore.prototype.dump = function() {
 };
 
 MessageStore.prototype.load = function(data) {
-  if (!data._data) {
-    // load old format compat
-    data._data = data._messages;
-  }
   BaseStore.prototype.load.call(this, data);
   this._messagesInTime = data._messagesInTime;
 };
@@ -120,16 +116,6 @@ UserStore.prototype._add = function() {
   return user.id;
 };
 
-UserStore.prototype.load = function(data) {
-  if (!data._data) {
-    //backwards compat
-    data = {
-      _data: data
-    };
-  }
-  BaseStore.prototype.load.call(this, data);
-};
-
 UserStore = new UserStore();
 
 function CommentStore() {
@@ -142,13 +128,6 @@ CommentStore.prototype._add = function(userId, messageId, content) {
   this._data[comment.id] = comment;
   UserStore._data[userId]._commentIds.push(comment.id);
   return comment.id;
-};
-
-CommentStore.prototype.load = function(data) {
-  if (!data._data) {
-    data = {_data:data};
-  }
-  BaseStore.prototype.load.call(this, data);
 };
 
 CommentStore = new CommentStore();
