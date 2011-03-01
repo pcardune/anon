@@ -2,5 +2,6 @@ li.message(id=message.id)
   span.content= message.content
   ul.comments
     - each comment in message.comments
-      li.comment(id=comment.id)= comment.content
+      li.comment(id=comment.id, class=comment.userId == message.userId ? "op" : "")
+        = comment.content
   !=partial("reply", {locals: {message: message}})

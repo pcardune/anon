@@ -56,9 +56,18 @@ form .buttons button {
   border: 1px solid #eee;
   padding: 5px;
 }
+.message .comments .comment.op {
+  font-weight: bold;
+}
 .message .reply {
   margin: 5px;
 }
 .message .reply .content {
   height: 30px;
+}
+.message .reply .buttons:before {
+  content: "☞";
+  font-size: 25px;
+  position: relative;
+  top: 5px;
 }
